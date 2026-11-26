@@ -2,6 +2,8 @@
 
 基于 [Gozargah/Marzban v0.8.4](https://github.com/Gozargah/Marzban/tree/v0.8.4) 的通用面板，保留 AGPL-3.0 许可证。源码、安装脚本和 GHCR 镜像公开；安装不需要 GitHub Token。
 
+全新部署、出口接入、用户分配和旧面板迁移的操作步骤及交互选项填写示例，见 **[操作指南](docs/operations-guide.md)**。
+
 ## 定制行为
 
 - 新增入站默认不分配给现有用户；新建用户默认没有任何入站。
