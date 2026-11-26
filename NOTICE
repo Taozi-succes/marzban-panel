@@ -1,0 +1,14 @@
+monster_panel
+
+This repository combines a Marzban panel customization, deployment and migration
+tools, node provisioning scripts, and synthetic tests. It does not contain
+operator credentials, production deployment data, or user databases.
+
+Marzban and Marzban-node are upstream projects maintained by Gozargah:
+https://github.com/Gozargah/Marzban
+https://github.com/Gozargah/Marzban-node
+
+The panel and node installer retain their existing GNU Affero General Public
+License in LICENSE. The node installer's commit history has been merged into
+this repository. Upstream container images retain their own copyright and
+license notices.

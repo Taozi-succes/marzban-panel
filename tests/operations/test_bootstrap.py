@@ -17,6 +17,9 @@ class Bootstrap(unittest.TestCase):
             root=Path(folder);(root/'bin').mkdir()
             output=io.BytesIO()
             with tarfile.open(fileobj=output,mode='w:gz') as tar:
+                decoy=b'# Other toolkit must never overwrite the operations API module.\n'
+                item=tarfile.TarInfo('repository/deploy/node/api.py');item.size=len(decoy)
+                tar.addfile(item,io.BytesIO(decoy))
                 for path in (ROOT/'deploy/operations').iterdir():
                     if not path.is_file() or not (path.suffix=='.py' or path.name=='SHA256SUMS'):continue
                     data=path.read_bytes()

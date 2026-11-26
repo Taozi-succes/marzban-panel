@@ -1,4 +1,4 @@
-# Marzban Panel
+# monster_panel
 
 基于 [Gozargah/Marzban v0.8.4](https://github.com/Gozargah/Marzban/tree/v0.8.4) 的通用面板，保留 AGPL-3.0 许可证。源码、安装脚本和 GHCR 镜像公开；安装不需要 GitHub Token。
 
@@ -19,14 +19,14 @@
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/install.sh)
 ```
 
 交互填写：面板完整域名、订阅完整域名、Cloudflare 区域、当前服务器 IPv4、证书邮箱、镜像版本、新管理员账号／密码、该区域的 DNS 编辑 Token。域名均填写自己的值，例如 `panel.example.com`、`sub.example.com` 和区域 `example.com`。镜像版本直接回车；不需要登录 GitHub 或 GHCR。
 
 Cloudflare Token 只需要目标区域的 DNS 编辑权限。安装器创建两条橙云 A 记录，通过 DNS-01 签发双域名 Let's Encrypt 证书并配置自动续期。若 DNS 已指向其他服务器，会停止以免覆盖现有业务。请在 Cloudflare 选择 **Full (strict)** SSL 模式，并确保这两个域名不受额外 Access 登录或交互式验证码规则拦截。
 
-完成后访问 `https://面板域名/dashboard/`。这会创建独立空面板，**没有旧用户、旧节点，也不会迁移旧管理员**。初始核心仅含容器内 loopback SOCKS 占位监听，不发布任何用户代理入口。随后使用公开的 [节点安装器](https://github.com/Taozi-succes/marzban-node-installer) 添加出口，在面板手动分配用户入站。
+完成后访问 `https://面板域名/dashboard/`。这会创建独立空面板，**没有旧用户、旧节点，也不会迁移旧管理员**。初始核心仅含容器内 loopback SOCKS 占位监听，不发布任何用户代理入口。随后添加出口，在面板手动分配用户入站。
 
 安装器默认目录 `/opt/marzban-panel`。重复执行只继续未完成的安装，不重置已完成的面板。可先加 `--plan` 查看计划。
 
@@ -36,12 +36,22 @@ marzban-panel status
 
 管理面板和订阅使用不同域名；订阅域名仅开放订阅路径。后端 HTTP 只绑定本机，443 由 Nginx 提供；系统防火墙保留 SSH，并限制 443 来源到 Cloudflare。Nginx 同时执行来源限制，避免依赖 Docker 发布端口的 UFW 行为。云厂商安全组仍由操作者放行 SSH、TCP 443。
 
+## 新增出口节点
+
+在独立的出口服务器上以 root 执行：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh)
+```
+
+交互配置 REALITY、Cloudflare WebSocket + TLS 和面板管理信息。安装后在面板手动分配用户入站。节点源码位于 `deploy/node/`，回归测试位于 `tests/node/`；详细选项、检测及切换主控步骤见 [节点安装器说明](docs/node-installer.md)。面板、迁移和节点安装器统一在本仓库维护，不需要 GitHub Token。
+
 ## 独立迁移工具
 
 **全新部署不会触发迁移。** 迁移另用 `migrate.sh`／`marzban-migrate`，操作顺序和停机边界见 [迁移说明](docs/migration.md)。当前只接受同一套定制 v0.8.4、SQLite 和匹配的应用指纹；不隐式升级官方原版或不同版本数据库。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/migrate.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/migrate.sh)
 ```
 
 直接运行进入交互向导：填写旧服务器 SSH 信息，自动备份、传输并隔离恢复；默认停止在验收阶段。以后重新运行选择正式切换，完整输入 `cutover 源容器名` 才会停旧主控并取最终快照接管。SSH 使用系统认证提示，不保存密码或私钥内容。首次目标未部署时，会先引导准备空目标面板和 HTTPS。
@@ -64,7 +74,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v
 
 ## 镜像与验证
 
-公开镜像：`ghcr.io/taozi-succes/marzban-panel:v1.1.0`。部署会记录实际拉取的不可变 sha256 摘要；不使用 `latest`。发布流程先构建和测试，通过后才推送镜像。
+公开镜像：`ghcr.io/taozi-succes/monster_panel:v1.2.0`。部署会记录实际拉取的不可变 sha256 摘要；不使用 `latest`。发布流程先构建和测试，通过后才推送镜像。
 
 ```bash
 docker build -t marzban-panel:test .
@@ -73,5 +83,7 @@ python3 tests/operations/integration.py --image marzban-panel:test
 ```
 
 CI 另外运行旧入站授权迁移回归和独立 OpenSSH 向导测试。集成测试只使用独立 Docker 容器、卷和隔离网络，验证空面板、新用户默认授权、加密导入、完整数据校验、隔离验收和最终恢复。测试不会联系正式面板、修改真实 DNS 或签发真实证书；实际云主机部署和证书签发仍需在操作者提供的新服务器验收。
+
+节点安装器另外执行 `python3 -m unittest discover -s tests/node -v` 和 `python3 tests/node/integration.py`，检查匿名下载安装、双协议、出口及流量统计；镜像发布前同时执行面板和节点测试。
 
 上游功能与开发资料见 [上游 README](README.upstream.md)。公开源码遵循 [LICENSE](LICENSE)。

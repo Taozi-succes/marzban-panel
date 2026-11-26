@@ -158,6 +158,7 @@ cython_debug/
 state.json
 credentials/
 backups/
+releases/
 v2ray-core
 xray-core
 

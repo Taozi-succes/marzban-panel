@@ -1,4 +1,4 @@
-name: Release public panel image
+name: Release monster_panel
 on:
   push:
     tags: ['v*.*.*']
@@ -7,7 +7,7 @@ on:
       version:
         description: Existing Git tag to build and publish without moving the tag
         required: true
-        default: v1.1.0
+        default: v1.2.0
 permissions:
   contents: read
   packages: write
@@ -16,8 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      IMAGE: ghcr.io/taozi-succes/marzban-panel
+      IMAGE: ghcr.io/taozi-succes/monster_panel
       RELEASE_TAG: ${{ inputs.version || github.ref_name }}
+      NODE_IMAGE: gozargah/marzban-node@sha256:f93791ee35aa98b3851b74e5556c33a1d4607caf3e10781f52f37add14ed974d
+      NGINX_IMAGE: nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,9 +28,12 @@ jobs:
         env:
           PRIVATE: ${{ github.event.repository.private }}
         run: |
-          test "$PRIVATE" = false && test "$GITHUB_REPOSITORY" = Taozi-succes/marzban-panel
+          test "$PRIVATE" = false && test "$GITHUB_REPOSITORY" = Taozi-succes/monster_panel
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "$(git describe --tags --exact-match)" = "$RELEASE_TAG"
+          bash -n install.sh migrate.sh node.sh deploy/node/install.sh
+          (cd deploy/operations && sha256sum --check --strict SHA256SUMS)
+          (cd deploy/node && sha256sum --check --strict SHA256SUMS)
       - name: Build a single platform release
         run: docker build --platform linux/amd64 --provenance=false --sbom=false --label "org.opencontainers.image.revision=$(git rev-parse HEAD)" -t "$IMAGE:$RELEASE_TAG" .
       - name: Run permission and operations tests
@@ -40,6 +45,12 @@ jobs:
         run: |
           docker build --build-arg PANEL_IMAGE="$IMAGE:$RELEASE_TAG" -t marzban-panel-ssh:test -f tests/operations/Dockerfile.ssh .
           docker run --rm --network none -v "$PWD:/repo:ro" --entrypoint python marzban-panel-ssh:test /repo/tests/operations/ssh_integration.py
+      - name: Test node installer before publication
+        run: |
+          docker pull "$NODE_IMAGE"
+          docker pull "$NGINX_IMAGE"
+          docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python "$NODE_IMAGE" -m unittest discover -s tests/node -v
+          python3 tests/node/integration.py
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io

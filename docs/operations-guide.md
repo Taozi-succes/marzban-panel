@@ -1,6 +1,6 @@
-# Marzban 操作指南
+# monster_panel 操作指南
 
-适用版本：面板与节点安装器 `v1.1.0`。以下命令由你在对应服务器执行。
+适用版本：面板与节点安装器 `v1.2.0`。以下命令由你在对应服务器执行。
 
 - **全新面板，只建新用户**：做第 1、2、3 节。
 - **搬迁旧面板，保留用户和流量**：做第 1、4 节，验收后再做第 5 节。
@@ -49,7 +49,7 @@ apt-get install -y curl ca-certificates
 在**新主控服务器**执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/install.sh)
 ```
 
 | 交互选项 | 怎么填 |
@@ -78,7 +78,7 @@ marzban-panel status
 在**全新出口服务器**执行；已有业务节点不要按首次安装处理。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.1.0/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh)
 ```
 
 | 交互选项 | 怎么填 |
@@ -126,7 +126,7 @@ marzban-node check
 在**新主控服务器**执行。无需先单独部署空面板；没有目标面板时，向导会先引导安装，填写方法见第 2 节。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/migrate.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/migrate.sh)
 ```
 
 目标面板应为空，不要提前增加业务用户或节点。
@@ -176,7 +176,7 @@ marzban-migrate verify
 等新面板 `phase: active`、旧面板已停止，再在**每台由本安装器完成安装的出口**执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.1.0/bootstrap.sh) switch-panel
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh) switch-panel
 ```
 
 | 交互选项 | 怎么填 |
