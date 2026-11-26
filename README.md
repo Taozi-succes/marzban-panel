@@ -4,22 +4,22 @@
 
 仅包含通用脚本、文档和合成测试，不包含主面板源码、生产部署资料、服务器列表、真实凭据或用户数据。
 
-`v1.0.1` 修复部分云服务器访问 Cloudflare 网站网段列表收到 HTTP 403 的问题，改用官方公开 API `https://api.cloudflare.com/client/v4/ips`。网段未取得或校验失败时不改防火墙。安装会显示阶段，长命令每 15 秒显示等待时间，不输出密码或命令中的秘密参数。管理 CLI 在安装依赖前保存，后续失败也可查看状态。
+`v1.1.0` 修复部分云服务器访问 Cloudflare 网站网段列表收到 HTTP 403 的问题，改用官方公开 API `https://api.cloudflare.com/client/v4/ips`。网段未取得或校验失败时不改防火墙。安装会显示阶段，长命令每 15 秒显示等待时间，不输出密码或命令中的秘密参数。管理 CLI 在安装依赖前保存，后续失败也可查看状态。
 
 ## 一键安装
 
 在新服务器的 **root SSH 终端**执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.1/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.1.0/bootstrap.sh)
 ```
 
-非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.0.1`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
+非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.1.0`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
 
 只预览计划：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.1/bootstrap.sh) --plan
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.1.0/bootstrap.sh) --plan
 ```
 
 预览读取面板和校验 Cloudflare 区域，不写 DNS、证书、用户或节点配置。入口可能在执行命令的新服务器上安装缺少的 Python/OpenSSL 工具。
@@ -66,7 +66,7 @@ marzban-node status
 marzban-node check
 marzban-node reconfigure --plan
 marzban-node reconfigure
-marzban-node upgrade --release v1.0.1
+marzban-node upgrade --release v1.1.0
 marzban-node rollback
 ```
 
@@ -79,6 +79,20 @@ marzban-node rollback
 `check` 使用 15 分钟过期、10 MiB 配额的临时账号验证双协议、出口和用户/节点计量，再删除账号；清理未确认会报错并保留恢复记录。WS 走公网域名，REALITY 从回环认证，公网入口仍需外部客户端验证。`marzban-node-renew.timer` 每日检查两次续期，成功后重载 Nginx。
 
 ## 测试与发布
+
+### 交互切换迁移后的主面板
+
+主面板迁到新服务器／域名，并保留原数据库和节点身份后，在每台出口执行：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.1.0/bootstrap.sh) switch-panel
+```
+
+填写新面板 HTTPS 地址、新主控公网 IPv4 和管理员账号／密码；可在末尾加 `--plan` 只检查。脚本核对节点 TLS 身份、节点编号、地址、端口和原入站。确认旧主控已停止且云安全组已放行新来源后，只更新本地安装记录和两个管理端口的 UFW 来源规则，保留代理端口、密钥、WS 域名、证书和用户授权；不发布核心配置，不重启代理容器。会先保存原状态到 `releases/panel-switch-*.json`。
+
+连接检查失败时，已保存的新地址可继续使用 `switch-panel` 重试或 `check` 排查。不会自动恢复旧主控。完成后已安装的 CLI 可直接执行 `marzban-node switch-panel`。尚在旧版本的 CLI 先用上面的公开命令，无需 GitHub Token。
+
+独立空面板不含原节点身份和用户，不能用此命令直接接管；需要单独导入数据或建立独立节点实例。
 
 离线回归覆盖冲突保护、幂等恢复、用户数据保留、默认权限、回退、私有文件权限、匿名升级、包校验和文档的一键命令。
 

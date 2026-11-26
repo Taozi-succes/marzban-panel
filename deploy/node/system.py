@@ -276,6 +276,21 @@ WantedBy=timers.target
             run(["systemctl", "daemon-reload"])
             run(["systemctl", "enable", "--now", "marzban-node-renew.timer"])
 
+    def switch_management(self,old_ip,cfg):
+        if old_ip==cfg['panel_ip']:return
+        # Node containers use host networking. Keep proxy/SSH/Cloudflare rules
+        # intact and replace only this installer's two management source rules.
+        label='marzban-node-bootstrap'
+        for port in (cfg['control_port'],cfg['api_port']):
+            run(['ufw','insert','1','allow','from',cfg['panel_ip'],'to','any','port',str(port),'proto','tcp','comment',label])
+        status=run(['ufw','status','numbered']).decode()
+        rows=[]
+        for line in status.splitlines():
+            match=re.match(r'\[\s*(\d+)\]\s+(\d+)/tcp\s+ALLOW IN\s+(\S+)\s+# '+label+r'\s*$',line)
+            if match and int(match[2]) in (cfg['control_port'],cfg['api_port']) and match[3] in (old_ip,old_ip+'/32'):
+                rows.append(int(match[1]))
+        for index in sorted(rows,reverse=True):run(['ufw','--force','delete',str(index)])
+
     def install_cli(self):
         source = Path(__file__).parent
         destination = self.root/"installer"

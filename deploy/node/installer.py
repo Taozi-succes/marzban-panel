@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Interactive installation using only the existing Marzban API and stock node image."""
 import argparse
+import copy
 from datetime import datetime, timezone
 import getpass
 import json
@@ -64,6 +65,59 @@ def login(cfg):
     finally:
         password = ""
     return panel
+
+
+def switch_plan(panel,host,state,new_config):
+    """A migrated controller must retain its database, TLS identity and core."""
+    cfg=validate(new_config)
+    certificate=host.root/'data/ssl_client_cert.pem'
+    if not certificate.is_file():raise InstallError('本机缺少现有面板信任证书，拒绝直接切换')
+    normalize=lambda value:''.join(value.split())
+    if normalize(certificate.read_text())!=normalize(panel.certificate()):
+        raise InstallError('新地址不是原面板迁移后的身份；请先迁移原数据库，不能只修改 URL 接入独立空面板')
+    matches=[n for n in panel.nodes() if n['id']==state.get('node_api_id')]
+    expected={'name':cfg['node_id'],'address':cfg['address'],'port':cfg['control_port'],'api_port':cfg['api_port']}
+    if len(matches)!=1 or any(matches[0].get(k)!=v for k,v in expected.items()):
+        raise InstallError('新面板未保留本节点的编号、地址和管理端口，拒绝切换')
+    current=panel.core()
+    by_tag={value['tag']:value for value in current.get('inbounds',[])}
+    if not state.get('desired_inbounds') or any(by_tag.get(i['tag'])!=i for i in state['desired_inbounds']):
+        raise InstallError('新面板中的本节点入站与本机记录不一致，请先核对迁移数据')
+    if matches[0].get('status')=='disabled':raise InstallError('新面板节点被禁用；请先完成主面板接管并启用该节点')
+    return cfg
+
+
+def switch_panel(host,state,plan=False):
+    if not state or not state.get('core_applied') or not state.get('node_api_id'):
+        raise InstallError('节点尚未完成发布，不能切换主控')
+    cfg=copy.deepcopy(state['config'])
+    cfg['panel_url']=ask('新面板 HTTPS 地址',cfg['panel_url'])
+    cfg['panel_ip']=ask('新面板管理服务器公网 IPv4',cfg['panel_ip'])
+    cfg=validate(cfg)
+    remote=login(cfg)
+    try:
+        cfg=switch_plan(remote,host,state,cfg)
+        print('原面板',state['config']['panel_url'],'→ 新面板',cfg['panel_url'])
+        print('管理来源',state['config']['panel_ip'],'→',cfg['panel_ip'])
+        print('已核对同一面板身份及节点入站；节点端口、密钥、域名、证书和用户授权不变。')
+        print('请先停止旧主控，并在云安全组给新主控 IP 放行这两个管理端口。')
+        if plan or ask('确认旧主控已停止且云防火墙已放行，输入 switch')!='switch':return
+        previous=copy.deepcopy(state)
+        ident=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ-')+secrets.token_hex(4)
+        save_json(host.root/'releases'/('panel-switch-'+ident+'.json'),previous)
+        state['panel_switch']={'from_url':previous['config']['panel_url'],'from_ip':previous['config']['panel_ip'],
+                               'to_url':cfg['panel_url'],'to_ip':cfg['panel_ip'],'status':'pending'}
+        save_json(host.root/'state.json',state)
+        host.switch_management(previous['config']['panel_ip'],cfg)
+        state['config']=cfg;state['version']=VERSION
+        state['panel_switch']['status']='awaiting_connection'
+        save_json(host.root/'state.json',state)
+        host.install_cli()
+        remote.wait_node(state['node_api_id'])
+        state['panel_switch']['status']='complete'
+        save_json(host.root/'state.json',state)
+        print('面板地址和管理来源已切换，节点已连接。可运行 marzban-node check 验证出口和计量。')
+    finally:remote.token=''
 
 
 def prepare_plan(panel, cfg, previous=None, occupied=None):
@@ -204,13 +258,13 @@ def apply(panel, cloud, host, journal, save):
 
 def run_cli(argv=None):
     parser = argparse.ArgumentParser(description="交互式接入 Marzban 标准节点")
-    parser.add_argument("command", nargs="?", choices=("install", "status", "check", "reconfigure", "upgrade", "rollback"), default="install")
+    parser.add_argument("command", nargs="?", choices=("install", "status", "check", "reconfigure", "upgrade", "rollback", "switch-panel"), default="install")
     parser.add_argument("--root", default="/opt/marzban-exit")
     parser.add_argument("--plan", action="store_true", help="仅生成计划，不安装或发布")
     parser.add_argument("--release", default="v" + VERSION, help="upgrade 使用的安装器 Git 标签")
     args = parser.parse_args(argv)
-    if args.plan and args.command not in ("install", "reconfigure"):
-        parser.error("--plan 只适用于 install 或 reconfigure")
+    if args.plan and args.command not in ("install", "reconfigure", "switch-panel"):
+        parser.error("--plan 只适用于 install、reconfigure 或 switch-panel")
     if args.plan or args.command in ("status", "upgrade"):
         return execute(args)
     if os.geteuid() != 0:
@@ -232,6 +286,7 @@ def execute(args):
     host = Host(args.root)
     state_path = host.root/"state.json"
     state = json.loads(state_path.read_text()) if state_path.exists() else None
+    if args.command=='switch-panel':return switch_panel(host,state,args.plan)
     if args.command == "status":
         if not state:
             raise InstallError("没有本安装器的节点记录")

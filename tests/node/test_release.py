@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/"deploy/node"))
 from api import InstallError
 from release import FILES, download, extract_bundle, upgrade
+from plan import VERSION
 
 
 def bundle(overrides=None, refresh=False):
@@ -95,8 +96,8 @@ else:
                 self.assertNotIn(b"bootstrap-fixture-installer-started", result.stdout)
             calls = json.loads((stage/"calls.json").read_text())
             self.assertEqual(len(calls), 2)
-            self.assertIn("https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.1/bootstrap.sh", calls[0])
-            self.assertIn("https://codeload.github.com/Taozi-succes/marzban-node-installer/tar.gz/refs/tags/v1.0.1", calls[1])
+            self.assertIn(f"https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v{VERSION}/bootstrap.sh", calls[0])
+            self.assertIn(f"https://codeload.github.com/Taozi-succes/marzban-node-installer/tar.gz/refs/tags/v{VERSION}", calls[1])
             self.assertNotIn("Authorization", json.dumps(calls))
             self.assertNotIn("unused-secret", json.dumps(calls))
             self.assertNotIn(b"unused-secret", result.stdout+result.stderr)
