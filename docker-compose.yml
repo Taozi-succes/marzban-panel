@@ -1,0 +1,10 @@
+services:
+  marzban:
+    # Minimal development example; production uses install.sh's generated stack.
+    image: ghcr.io/taozi-succes/marzban-panel:v1.0.0
+    restart: always
+    env_file: .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - /var/lib/marzban:/var/lib/marzban

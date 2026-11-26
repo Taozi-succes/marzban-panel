@@ -1,0 +1,19 @@
+{
+  "inbounds": [
+    {
+      "tag": "bootstrap-local",
+      "listen": "127.0.0.1",
+      "port": 19001,
+      "protocol": "socks",
+      "settings": {
+        "auth": "noauth"
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "DIRECT",
+      "protocol": "freedom"
+    }
+  ]
+}

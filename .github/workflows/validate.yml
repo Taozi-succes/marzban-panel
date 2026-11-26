@@ -1,0 +1,26 @@
+name: Validate panel and operations
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and toolkit integrity
+        run: |
+          bash -n install.sh migrate.sh
+          (cd deploy/operations && sha256sum --check --strict SHA256SUMS)
+      - name: Build the actual panel image
+        run: docker build -t marzban-panel:test .
+      - name: Existing inbound permission regression
+        run: docker run --rm --network none -e PYTHONPATH=/code -v "$PWD/tests:/checks:ro" --entrypoint python marzban-panel:test /checks/test_inbound_assignments.py
+      - name: Offline operations regression
+        run: docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python marzban-panel:test -m unittest discover -s tests/operations -v
+      - name: Isolated fresh install and migration runtime
+        run: python3 tests/operations/integration.py --image marzban-panel:test
