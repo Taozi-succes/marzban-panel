@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+state.json
+credentials/
+releases/
+*.pem
+*.key
+*.db
+*.sqlite3
+*.log
+.venv/

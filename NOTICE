@@ -1,0 +1,12 @@
+Marzban Node Installer
+
+This repository contains generic node provisioning scripts and synthetic tests.
+It does not contain a panel deployment, operator credentials, or user databases.
+
+Marzban and Marzban-node are upstream projects maintained by Gozargah:
+https://github.com/Gozargah/Marzban
+https://github.com/Gozargah/Marzban-node
+
+The installer was extracted from a Marzban companion project. Its existing
+GNU Affero General Public License is retained in LICENSE. Upstream container
+images retain their own copyright and license notices.

@@ -1,0 +1,31 @@
+name: Validate installer
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NODE_IMAGE: gozargah/marzban-node@sha256:f93791ee35aa98b3851b74e5556c33a1d4607caf3e10781f52f37add14ed974d
+      PANEL_IMAGE: gozargah/marzban@sha256:8e422c21997e5d2e3fa231eeff73c0a19193c20fc02fa4958e9368abb9623b8d
+      NGINX_IMAGE: nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check syntax and release manifest
+        run: |
+          bash -n bootstrap.sh deploy/node/install.sh
+          (cd deploy/node && sha256sum --check --strict SHA256SUMS)
+      - name: Pull fixed public test images
+        run: |
+          docker pull "$NODE_IMAGE"
+          docker pull "$PANEL_IMAGE"
+          docker pull "$NGINX_IMAGE"
+      - name: Offline regression and bootstrap tests
+        run: docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python "$NODE_IMAGE" -m unittest discover -s tests/node -v
+      - name: Real isolated transport and metering
+        run: python3 tests/node/integration.py
