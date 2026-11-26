@@ -7,7 +7,7 @@ on:
       version:
         description: Existing Git tag to build and publish without moving the tag
         required: true
-        default: v1.0.0
+        default: v1.1.0
 permissions:
   contents: read
   packages: write
@@ -36,6 +36,10 @@ jobs:
           docker run --rm --network none -e PYTHONPATH=/code -v "$PWD/tests:/checks:ro" --entrypoint python "$IMAGE:$RELEASE_TAG" /checks/test_inbound_assignments.py
           docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python "$IMAGE:$RELEASE_TAG" -m unittest discover -s tests/operations -v
           python3 tests/operations/integration.py --image "$IMAGE:$RELEASE_TAG"
+      - name: Test SSH migration wizard
+        run: |
+          docker build --build-arg PANEL_IMAGE="$IMAGE:$RELEASE_TAG" -t marzban-panel-ssh:test -f tests/operations/Dockerfile.ssh .
+          docker run --rm --network none -v "$PWD:/repo:ro" --entrypoint python marzban-panel-ssh:test /repo/tests/operations/ssh_integration.py
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io

@@ -10,8 +10,8 @@ import threading
 import time
 from contextlib import contextmanager
 
-VERSION = "1.0.0"
-DEFAULT_IMAGE = "ghcr.io/taozi-succes/marzban-panel:v1.0.0"
+VERSION = "1.1.0"
+DEFAULT_IMAGE = "ghcr.io/taozi-succes/marzban-panel:v1.1.0"
 NGINX_IMAGE = "nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a"
 MAX_BUNDLE = 256 * 1024 * 1024
 
@@ -63,7 +63,7 @@ def write_json(path, data):
     private_write(path, json.dumps(data, indent=2, ensure_ascii=False)+"\n")
 
 
-def run(args, data=None, timeout=900, visible=False):
+def run(args, data=None, timeout=900, visible=False,error_prefix=None):
     done = threading.Event()
     started = time.monotonic()
     def beat():
@@ -74,6 +74,9 @@ def run(args, data=None, timeout=900, visible=False):
     try:
         result = subprocess.run(args, input=data, capture_output=True, timeout=timeout)
         if result.returncode:
+            if error_prefix:
+                for line in result.stderr.decode(errors='replace').splitlines():
+                    if line.startswith(error_prefix):raise ToolError('源端迁移停止：'+line[len(error_prefix):][:300])
             raise ToolError(f"{Path(args[0]).name} 执行失败，退出码 {result.returncode}；输出未公开以保护凭据")
         if visible:
             print(result.stdout.decode(errors="replace"))

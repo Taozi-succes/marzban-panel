@@ -1,0 +1,4 @@
+ARG PANEL_IMAGE=ghcr.io/taozi-succes/marzban-panel:v1.0.0
+FROM ${PANEL_IMAGE}
+RUN apt-get update && apt-get install -y --no-install-recommends openssh-server openssh-client && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*

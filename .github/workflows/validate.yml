@@ -24,3 +24,7 @@ jobs:
         run: docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python marzban-panel:test -m unittest discover -s tests/operations -v
       - name: Isolated fresh install and migration runtime
         run: python3 tests/operations/integration.py --image marzban-panel:test
+      - name: Isolated SSH migration wizard
+        run: |
+          docker build --build-arg PANEL_IMAGE=marzban-panel:test -t marzban-panel-ssh:test -f tests/operations/Dockerfile.ssh .
+          docker run --rm --network none -v "$PWD:/repo:ro" --entrypoint python marzban-panel-ssh:test /repo/tests/operations/ssh_integration.py

@@ -17,7 +17,7 @@
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.0.0/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/install.sh)
 ```
 
 交互填写：面板完整域名、订阅完整域名、Cloudflare 区域、当前服务器 IPv4、证书邮箱、镜像版本、新管理员账号／密码、该区域的 DNS 编辑 Token。域名均填写自己的值，例如 `panel.example.com`、`sub.example.com` 和区域 `example.com`。镜像版本直接回车；不需要登录 GitHub 或 GHCR。
@@ -39,10 +39,12 @@ marzban-panel status
 **全新部署不会触发迁移。** 迁移另用 `migrate.sh`／`marzban-migrate`，操作顺序和停机边界见 [迁移说明](docs/migration.md)。当前只接受同一套定制 v0.8.4、SQLite 和匹配的应用指纹；不隐式升级官方原版或不同版本数据库。
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.0.0/migrate.sh) --help
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.1.0/migrate.sh)
 ```
 
-`backup` 在线只读导出，供预演；`freeze` 在确认后停止源主控并导出最终包；`restore` 进入禁止写入、订阅和节点连接的隔离验收模式；`activate` 要求最终停机快照并再次明确确认唯一主控接管。预演包不能激活。真实备份使用口令加密，不能提交到 GitHub。
+直接运行进入交互向导：填写旧服务器 SSH 信息，自动备份、传输并隔离恢复；默认停止在验收阶段。以后重新运行选择正式切换，完整输入 `cutover 源容器名` 才会停旧主控并取最终快照接管。SSH 使用系统认证提示，不保存密码或私钥内容。首次目标未部署时，会先引导准备空目标面板和 HTTPS。
+
+独立命令继续保留：`backup` 在线只读导出，供预演；`freeze` 在确认后停止源主控并导出最终包；`restore` 进入禁止写入、订阅和节点连接的隔离验收模式；`activate` 要求最终停机快照并再次明确确认唯一主控接管。预演包不能激活。真实备份使用口令加密，不能提交到 GitHub。
 
 ## 本机文件
 
@@ -52,6 +54,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v
 | `/opt/marzban-panel/.env` | 运行环境，仅 root 可读写 |
 | `/opt/marzban-panel/credentials/cloudflare.ini` | DNS Token，权限 600 |
 | `/opt/marzban-panel/state.json` | 部署状态，仅 root 可读写 |
+| `/opt/marzban-panel/migration/` | 迁移向导状态、源 SSH 主机身份和加密备份 |
 | `/opt/marzban-panel/releases/` | 目标恢复前的本地回退数据 |
 | `/etc/letsencrypt/live/面板域名/` | 自动续期证书和私钥 |
 
@@ -59,7 +62,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v
 
 ## 镜像与验证
 
-公开镜像：`ghcr.io/taozi-succes/marzban-panel:v1.0.0`。部署会记录实际拉取的不可变 sha256 摘要；不使用 `latest`。发布流程先构建和测试，通过后才推送镜像。
+公开镜像：`ghcr.io/taozi-succes/marzban-panel:v1.1.0`。部署会记录实际拉取的不可变 sha256 摘要；不使用 `latest`。发布流程先构建和测试，通过后才推送镜像。
 
 ```bash
 docker build -t marzban-panel:test .
@@ -67,6 +70,6 @@ docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python m
 python3 tests/operations/integration.py --image marzban-panel:test
 ```
 
-CI 另外运行旧入站授权迁移回归。集成测试只使用独立 Docker 容器、卷和隔离网络，验证空面板、新用户默认授权、加密导入、完整数据校验、隔离验收和最终恢复。测试不会联系正式面板、修改真实 DNS 或签发真实证书；实际云主机部署和证书签发仍需在操作者提供的新服务器验收。
+CI 另外运行旧入站授权迁移回归和独立 OpenSSH 向导测试。集成测试只使用独立 Docker 容器、卷和隔离网络，验证空面板、新用户默认授权、加密导入、完整数据校验、隔离验收和最终恢复。测试不会联系正式面板、修改真实 DNS 或签发真实证书；实际云主机部署和证书签发仍需在操作者提供的新服务器验收。
 
 上游功能与开发资料见 [上游 README](README.upstream.md)。公开源码遵循 [LICENSE](LICENSE)。

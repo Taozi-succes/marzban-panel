@@ -27,24 +27,25 @@ def manifest_only(payload):
         return json.load(archive.extractfile(entry))
 
 
-def inspect_container(container):
-    value=json.loads(run(['docker','inspect',container]))[0]
+def inspect_container(container,docker_command=('docker',)):
+    value=json.loads(run([*docker_command,'inspect',container]))[0]
     if not value.get('Config',{}).get('Image'):raise ToolError('源容器信息无效')
     return value
 
 
-def export_container(container,kind,addresses):
-    info=inspect_container(container)
+def export_container(container,kind,addresses,docker_command=('docker',),receipt=None):
+    info=inspect_container(container,docker_command)
     if kind=='final' and info['State']['Running']:raise ToolError('最终备份要求源主控已停止')
     metadata={'kind':kind,'source_container':info['Id'],'source_image':info['Config']['Image'],
         'source_stopped':not info['State']['Running'],'source_addresses':addresses,
         'created_utc':datetime.now(timezone.utc).isoformat()}
+    if receipt is not None:metadata['stop_receipt']=receipt
     # Config.Env is used only in a root-only temporary file, never printed.
     values=dict(row.split('=',1) for row in info['Config']['Env'] if '=' in row)
     with tempfile.TemporaryDirectory(prefix='panel-export-') as folder:
         path=Path(folder)/'source.env';private_write(path,render_env(values))
         tool=Path(__file__).parent.resolve()
-        return run(['docker','run','--rm','--network','none','--volumes-from',container+':ro',
+        return run([*docker_command,'run','--rm','--network','none','--volumes-from',container+':ro',
             '--env-file',str(path),'-v',str(tool)+':/operator:ro','--entrypoint','python',info['Image'],
             '/operator/exporter.py',canonical(metadata).decode()])
 
@@ -72,7 +73,7 @@ def backup(container,output,addresses,freeze=False,allow_local=False):
     if not freeze:print('这是预演快照，不能用于激活接管；正式切换需 freeze 最终备份。')
 
 
-def restore(host,archive,password):
+def restore(host,archive,password,confirmed=False):
     state_path=host.root/'state.json'
     state=json.loads(state_path.read_text())
     if state['phase'] not in ('active','staging'):raise ToolError('先完成独立部署，或恢复已有验收实例')
@@ -104,7 +105,7 @@ def restore(host,archive,password):
         config['external_xray']=(incoming/'runtime/xray-current').exists()
         disable_nodes(incoming/'data/db.sqlite3')
         same_data(manifest['profile'],inventory(incoming/'data/db.sqlite3'))
-        if ask('恢复会替换空面板管理员并进入隔离验收，输入 restore')!='restore':return
+        if not confirmed and ask('恢复会替换空面板管理员并进入隔离验收，输入 restore')!='restore':return False
         releases=host.root/'releases';releases.mkdir(mode=0o700,exist_ok=True)
         saved=Path(tempfile.mkdtemp(prefix='restore-',dir=releases))
         for name in ('.env','compose.yaml','nginx.conf','state.json','runtime/xray-current'):
@@ -132,6 +133,7 @@ def restore(host,archive,password):
             raise
     verify(host)
     print('隔离恢复完成：不会启动主控核心、连接正式节点或开放订阅。')
+    return True
 
 
 def recover(host):
@@ -164,7 +166,7 @@ def verify(host):
     return actual
 
 
-def activate(host,allow_local=False):
+def activate(host,allow_local=False,confirmed=False):
     state_path=host.root/'state.json';state=json.loads(state_path.read_text())
     if state['mode']!='migration' or state['phase'] not in ('staging','activating'):raise ToolError('只能从隔离验收或未完成接管状态继续')
     manifest=state['manifest']
@@ -173,19 +175,21 @@ def activate(host,allow_local=False):
     verify(host)
     print('源容器标识',manifest['source_container'])
     print('请确认旧主控仍保持停止，节点云防火墙已准备新来源 IP。')
-    if ask('输入源容器标识末12位，确认唯一主控接管')!=manifest['source_container'][-12:]:return
+    if not confirmed and ask('输入源容器标识末12位，确认唯一主控接管')!=manifest['source_container'][-12:]:return False
     state['phase']='activating';write_json(state_path,state)
     host.compose('stop','panel')
     restore_node_statuses(host.root/'data/db.sqlite3',manifest['profile']['node_statuses'])
     host.render(state['config'],False)
     host.start();state['phase']='active';write_json(state_path,state)
     print('新主控已启动接管。请执行出口、用户授权、订阅与计量验收；旧面板保持停止。')
+    return True
 
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description='独立迁移工具；备份、隔离恢复与正式接管分开')
     parser.add_argument('--root',default='/opt/marzban-panel')
-    commands=parser.add_subparsers(dest='command',required=True)
+    commands=parser.add_subparsers(dest='command')
+    commands.add_parser('wizard',help='交互填写源 SSH，自动备份、传输和隔离恢复；切换另行确认')
     for name in ('backup','freeze'):
         p=commands.add_parser(name);p.add_argument('--container',required=True);p.add_argument('--output',required=True)
         p.add_argument('--source-address',action='append',default=[]);p.add_argument('--ack-local-exits-reviewed',action='store_true')
@@ -195,13 +199,17 @@ def main(argv=None):
     commands.add_parser('recover')
     args=parser.parse_args(argv)
     if os.geteuid()!=0:raise ToolError('请使用 root')
-    if args.command in ('backup','freeze','restore'):
+    if args.command is None:args.command='wizard'
+    if args.command in ('backup','freeze','restore','wizard'):
         import importlib.util
         if importlib.util.find_spec('cryptography') is None:
             print('[迁移] 安装加密依赖，不修改面板数据',flush=True)
             run(['apt-get','update']);run(['apt-get','install','-y','python3-cryptography'])
     with operator_lock():
-        if args.command in ('backup','freeze'):
+        if args.command=='wizard':
+            from wizard import wizard
+            wizard(Host(args.root))
+        elif args.command in ('backup','freeze'):
             backup(args.container,args.output,args.source_address,args.command=='freeze',args.ack_local_exits_reviewed)
         else:
             host=Host(args.root)
