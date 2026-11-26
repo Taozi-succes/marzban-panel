@@ -19,6 +19,7 @@ jobs:
       IMAGE: ghcr.io/taozi-succes/monster_panel
       RELEASE_TAG: ${{ inputs.version || github.ref_name }}
       NODE_IMAGE: gozargah/marzban-node@sha256:f93791ee35aa98b3851b74e5556c33a1d4607caf3e10781f52f37add14ed974d
+      PANEL_IMAGE: gozargah/marzban@sha256:8e422c21997e5d2e3fa231eeff73c0a19193c20fc02fa4958e9368abb9623b8d
       NGINX_IMAGE: nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +49,7 @@ jobs:
       - name: Test node installer before publication
         run: |
           docker pull "$NODE_IMAGE"
+          docker pull "$PANEL_IMAGE"
           docker pull "$NGINX_IMAGE"
           docker run --rm --network none -v "$PWD:/repo:ro" -w /repo --entrypoint python "$NODE_IMAGE" -m unittest discover -s tests/node -v
           python3 tests/node/integration.py
