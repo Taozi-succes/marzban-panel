@@ -101,6 +101,7 @@ def verify(panel, cfg, keys, journal, save, runner=docker_probe, seconds=90):
         results = []
         for kind in ("reality", "ws"):
             if cfg["mode"] in ("both", kind):
+                print("  [检测] " + kind + " 认证与 HTTPS 出口", flush=True)
                 for attempt in range(3):
                     # Core restart is asynchronous in Marzban 0.8.4. Reapply this
                     # isolated account through the standard API after a transient failure.
@@ -114,6 +115,7 @@ def verify(panel, cfg, keys, journal, save, runner=docker_probe, seconds=90):
                         time.sleep(2)
                 results.append(kind)
         deadline = time.monotonic() + seconds
+        print("  [检测] 等待用户与目标节点的流量统计更新", flush=True)
         while time.monotonic() < deadline:
             account = panel.request("GET", path)
             usage_after = panel.usage(journal["node_api_id"])

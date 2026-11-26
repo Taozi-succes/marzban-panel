@@ -9,21 +9,62 @@ import secrets
 import shutil
 import subprocess
 import tempfile
-from urllib.request import urlopen
+import threading
+import time
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from api import InstallError
-from plan import NODE_IMAGE, NGINX_IMAGE
+from plan import VERSION, NODE_IMAGE, NGINX_IMAGE
+
+HEARTBEAT_SECONDS = 15
 
 
 def run(args, data=None):
+    finished = threading.Event()
+    started = time.monotonic()
+    def heartbeat():
+        while not finished.wait(HEARTBEAT_SECONDS):
+            print(f"  [等待] {Path(args[0]).name} 已运行 {int(time.monotonic()-started)} 秒", flush=True)
+    watcher = threading.Thread(target=heartbeat, daemon=True)
+    watcher.start()
     try:
         result = subprocess.run(args, input=data, capture_output=True, timeout=900)
     except (OSError, subprocess.TimeoutExpired):
         raise InstallError(f"执行 {Path(args[0]).name} 失败或超时") from None
+    finally:
+        finished.set()
+        watcher.join(timeout=1)
     if result.returncode:
         # Keep process output private: ACME and Xray commands may contain credentials.
         raise InstallError(f"执行 {Path(args[0]).name} 失败，退出码 {result.returncode}")
     return result.stdout
+
+
+def cloudflare_ipv4_networks():
+    request = Request("https://api.cloudflare.com/client/v4/ips", headers={
+        "Accept": "application/json", "User-Agent": "marzban-node-installer/" + VERSION})
+    try:
+        with urlopen(request, timeout=25) as response:
+            payload = json.loads(response.read(65536))
+        networks = payload["result"]["ipv4_cidrs"] if payload.get("success") is True else None
+        if not isinstance(networks, list) or not 1 <= len(networks) <= 256:
+            raise ValueError("invalid network list")
+        normalized = []
+        for value in networks:
+            if not isinstance(value, str):
+                raise ValueError("invalid network type")
+            network = ipaddress.ip_network(value)
+            if not isinstance(network, ipaddress.IPv4Network) or not network.is_global or network.prefixlen < 8:
+                raise ValueError("invalid public IPv4 network")
+            normalized.append(str(network))
+        return list(dict.fromkeys(normalized))
+    except HTTPError as error:
+        raise InstallError(f"获取 Cloudflare 公网网段失败：HTTP {error.code}（api.cloudflare.com）；防火墙尚未修改") from None
+    except (URLError, OSError):
+        raise InstallError("获取 Cloudflare 公网网段连接失败（api.cloudflare.com）；请检查网络后重试，防火墙尚未修改") from None
+    except (ValueError, KeyError, TypeError, AttributeError):
+        raise InstallError("Cloudflare 公网网段响应校验失败；防火墙尚未修改") from None
 
 
 def write_private(path, data, mode=0o600):
@@ -181,6 +222,8 @@ class Host:
             self.compose("run", "--rm", "--no-deps", "-T", "ingress", "nginx", "-t")
 
     def firewall(self, cfg):
+        # Validate the public API response before deleting or adding any UFW rule.
+        networks = cloudflare_ipv4_networks() if cfg["mode"] in ("both", "ws") else []
         label = "marzban-node-bootstrap"
         status = run(["ufw", "status", "numbered"]).decode()
         numbers = [int(m.group(1)) for line in status.splitlines()
@@ -202,11 +245,6 @@ class Host:
         if cfg["mode"] in ("both", "reality"):
             run(["ufw", "allow", str(cfg["reality_port"]) + "/tcp", "comment", label])
         if cfg["mode"] in ("both", "ws"):
-            with urlopen("https://www.cloudflare.com/ips-v4/", timeout=25) as response:
-                networks = response.read(16384).decode().splitlines()
-            if not networks or any(not isinstance(ipaddress.ip_network(n), ipaddress.IPv4Network)
-                                   or not ipaddress.ip_network(n).is_global or ipaddress.ip_network(n).prefixlen < 8 for n in networks):
-                raise InstallError("Cloudflare 网段校验失败")
             run(["ufw", "insert", "1", "deny", "443/tcp", "comment", label])
             for network in networks:
                 run(["ufw", "insert", "1", "allow", "from", network, "to", "any", "port", "443", "proto", "tcp", "comment", label])
@@ -249,4 +287,7 @@ WantedBy=timers.target
         write_private("/usr/local/bin/marzban-node", script, 0o755)
 
     def status(self):
-        print(self.compose("ps").decode())
+        if (self.root/"compose.yaml").exists():
+            print(self.compose("ps").decode())
+        else:
+            print("  尚未生成 Compose 配置，请继续安装。")

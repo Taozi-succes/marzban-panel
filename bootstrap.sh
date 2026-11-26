@@ -19,7 +19,7 @@ main() (
     trap 'rm -rf -- "$local_stage"' EXIT
     curl --fail --silent --show-error --location --max-time 180 \
         --proto '=https' --proto-redir '=https' --max-filesize 67108864 \
-        'https://codeload.github.com/Taozi-succes/marzban-node-installer/tar.gz/refs/tags/v1.0.0' \
+        'https://codeload.github.com/Taozi-succes/marzban-node-installer/tar.gz/refs/tags/v1.0.1' \
         --output "$local_stage/source.tgz"
     python3 - "$local_stage/source.tgz" "$local_stage/installer" <<'PY'
 import hashlib

@@ -4,20 +4,22 @@
 
 仅包含通用脚本、文档和合成测试，不包含主面板源码、生产部署资料、服务器列表、真实凭据或用户数据。
 
+`v1.0.1` 修复部分云服务器访问 Cloudflare 网站网段列表收到 HTTP 403 的问题，改用官方公开 API `https://api.cloudflare.com/client/v4/ips`。网段未取得或校验失败时不改防火墙。安装会显示阶段，长命令每 15 秒显示等待时间，不输出密码或命令中的秘密参数。管理 CLI 在安装依赖前保存，后续失败也可查看状态。
+
 ## 一键安装
 
 在新服务器的 **root SSH 终端**执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.0/bootstrap.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.1/bootstrap.sh)
 ```
 
-非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.0.0`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
+非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.0.1`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
 
 只预览计划：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.0/bootstrap.sh) --plan
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-node-installer/v1.0.1/bootstrap.sh) --plan
 ```
 
 预览读取面板和校验 Cloudflare 区域，不写 DNS、证书、用户或节点配置。入口可能在执行命令的新服务器上安装缺少的 Python/OpenSSL 工具。
@@ -64,7 +66,7 @@ marzban-node status
 marzban-node check
 marzban-node reconfigure --plan
 marzban-node reconfigure
-marzban-node upgrade --release v1.0.0
+marzban-node upgrade --release v1.0.1
 marzban-node rollback
 ```
 

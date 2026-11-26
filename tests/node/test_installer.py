@@ -198,6 +198,31 @@ class InstallerTests(unittest.TestCase):
     def tearDown(self):
         self.http.close()
 
+    def test_interrupted_v1_plan_resumes_with_same_keys_and_installs_cli_first(self):
+        journal = self.plan()
+        journal["version"] = "1.0.0"
+        original_keys = copy.deepcopy(journal["keys"])
+        original_config = copy.deepcopy(journal["config"])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            save_json(root/"state.json", journal)
+            write_private(root/"credentials/cloudflare.ini", "dns_cloudflare_api_token = fixture-dns-token\n")
+            host = FakeHost()
+            host.root = root
+            host.install_cli = lambda: host.events.append("install_cli")
+            def answer(label, default="", secret=False):
+                return default if secret else "yes"
+            with patch("installer.Host", return_value=host), patch("installer.login", return_value=self.panel), \
+                 patch("installer.collect", side_effect=AssertionError("Saved configuration must be reused")), \
+                 patch("installer.ask", side_effect=answer), patch("installer.Cloudflare", return_value=self.cloud), \
+                 patch("installer.verify", return_value={"protocols": ["reality", "ws"]}), redirect_stdout(io.StringIO()):
+                execute(Namespace(root=str(root), command="install", plan=False))
+            saved = json.loads((root/"state.json").read_text())
+            self.assertEqual(saved["keys"], original_keys)
+            self.assertEqual(saved["config"], original_config)
+            self.assertEqual(saved["phase"], "complete")
+            self.assertEqual(host.events, ["install_cli", "dependencies", "prepare", "firewall", "start"])
+
     def plan(self):
         with patch("installer.generate_keys", return_value=KEYS):
             return prepare_plan(self.panel, self.cfg, occupied=set())
@@ -499,7 +524,8 @@ class PureTests(unittest.TestCase):
         def fake_run(args):
             calls.append(args)
             return b"[ 4] 10000/tcp ALLOW IN Anywhere # another-service\n[ 7] 443/tcp DENY IN Anywhere # marzban-node-bootstrap\n" if args[:3] == ["ufw", "status", "numbered"] else b""
-        reply = io.BytesIO(b"173.245.48.0/20\n103.21.244.0/22\n")
+        reply = io.BytesIO(json.dumps({"success": True, "result": {
+            "ipv4_cidrs": ["173.245.48.0/20", "103.21.244.0/22"]}}).encode())
         cfg = allocate_ports(CONFIG, {}, set())
         with patch("system.run", side_effect=fake_run), patch("system.urlopen", return_value=reply), \
              patch.dict(os.environ, {"SSH_CONNECTION": "1.1.1.1 50000 8.8.8.8 2222"}):

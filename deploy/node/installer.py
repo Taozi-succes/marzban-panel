@@ -124,10 +124,16 @@ def summary(journal):
 
 
 def apply(panel, cloud, host, journal, save):
+    def step(name, message):
+        journal["step"] = name
+        save()
+        print("\n[安装] " + message, flush=True)
     cfg = journal["config"]
+    step("dependencies", "1/8 安装或检查系统依赖、Docker 与节点镜像")
     host.dependencies()
     cf_token = cloud.token if cloud else ""
     if cloud:
+        step("dns", "2/8 检查 Cloudflare 区域及 DNS 记录")
         zone_id = cloud.zone(cfg["zone"])
         journal["zone_api_id"] = zone_id
         save()
@@ -140,11 +146,15 @@ def apply(panel, cloud, host, journal, save):
                                            journal.get("dns_record") if journal.get("dns_owned") else None, record)
         journal.update(dns_record=record_id, dns_owned=owned)
         save()
+    step("local_config", "3/8 准备节点信任、证书和本地入口配置")
     host.prepare(cfg, panel.certificate(), cf_token)
+    step("firewall", "4/8 获取并校验 Cloudflare 网段、配置系统防火墙")
     host.firewall(cfg)
+    step("services", "5/8 启动节点和 HTTPS 入口")
     host.start(cfg)
     journal["phase"] = "local_ready"
     save()
+    step("node_registration", "6/8 注册或核对面板节点，等待连接")
     if journal.get("node_api_id") is None:
         existing = [n for n in panel.nodes() if n["name"] == cfg["node_id"] or n["address"] == cfg["address"]]
         expected = {"name": cfg["node_id"], "address": cfg["address"], "port": cfg["control_port"], "api_port": cfg["api_port"]}
@@ -176,6 +186,7 @@ def apply(panel, cloud, host, journal, save):
     panel.wait_node(journal["node_api_id"])
     new_tags = {item["tag"] for item in journal["desired_inbounds"]} - {
         item["tag"] for item in journal["core_before"].get("inbounds", [])}
+    step("core_publish", "7/8 发布入站和 Host，检查原用户权限")
     publish(panel, journal["desired_inbounds"], journal, save)
     # Refuse a panel that still grants every user all newly created inbounds.
     if new_tags:
@@ -226,6 +237,7 @@ def execute(args):
             raise InstallError("没有本安装器的节点记录")
         summary(state)
         print("  当前阶段  " + state["phase"])
+        print("  当前步骤  " + state.get("step", "旧版未记录具体步骤"))
         host.status()
         return
     if args.command == "upgrade":
@@ -251,6 +263,7 @@ def execute(args):
             else:
                 if not state.get("core_applied") or not state.get("node_api_id"):
                     raise InstallError("节点尚未发布，请先继续安装")
+                print("[检测] 验证代理认证、出口和流量统计，结束后清理测试账号", flush=True)
                 result = verify(panel, state["config"], state["keys"], state, save)
                 state["phase"] = "complete"
                 save()
@@ -290,11 +303,16 @@ def execute(args):
         if state and state["release_id"] != journal["release_id"]:
             save_json(host.root/"releases"/(state["release_id"] + ".json"), state)
         save = lambda: save_json(state_path, journal)
+        journal["version"] = VERSION
         save()
-        apply(panel, cloud, host, journal, save)
         host.install_cli()
+        apply(panel, cloud, host, journal, save)
+        journal["step"] = "verification"
+        save()
+        print("\n[安装] 8/8 验证双协议、出口和流量统计，并清理测试账号", flush=True)
         result = verify(panel, cfg, journal["keys"], journal, save)
         journal["phase"] = "complete"
+        journal["step"] = "complete"
         save()
         print("\n节点已接入，测试账号已清理。请在面板给用户勾选新入站。")
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -310,7 +328,8 @@ if __name__ == "__main__":
         run_cli()
     except (InstallError, KeyboardInterrupt, OSError, json.JSONDecodeError) as error:
         reason = str(error) if isinstance(error, InstallError) else (
-            "用户取消" if isinstance(error, KeyboardInterrupt) else "文件或系统操作失败，请检查本地权限和状态文件")
+            "用户取消" if isinstance(error, KeyboardInterrupt) else
+            "系统或网络操作失败（" + type(error).__name__ + "），请核对上方安装步骤")
         print("\n安装器停止  " + reason, file=sys.stderr)
         print("已有安装记录可通过相同命令继续，详细状态使用 marzban-node status。", file=sys.stderr)
         sys.exit(1)
