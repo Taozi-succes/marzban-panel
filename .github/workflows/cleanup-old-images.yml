@@ -1,0 +1,53 @@
+name: Temporary old image cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      execute:
+        description: Delete superseded versions after reviewing the dry run
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: marzban-package-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.repository == 'Taozi-succes/marzban-panel'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      KEEP_TAG: v1.2.1
+      EXECUTE: ${{ inputs.execute }}
+    steps:
+      - name: Preserve the latest image and remove superseded versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_path=/users/Taozi-succes/packages/container/marzban-panel
+          package=$(gh api "$package_path")
+          jq -e '.name == "marzban-panel" and .repository.id == 1472699171' <<< "$package" >/dev/null
+          versions=$(gh api --paginate --slurp "$package_path/versions?per_page=100")
+          keep=$(jq -c --arg tag "$KEEP_TAG" '[.[][] | select(.metadata.container.tags | index($tag))]' <<< "$versions")
+          jq -e 'length == 1 and (.[0].name | test("^sha256:[a-f0-9]{64}$"))' <<< "$keep" >/dev/null
+          keep_id=$(jq -r '.[0].id' <<< "$keep")
+          echo "Preserving $KEEP_TAG:"
+          jq '.[0] | {id, name, tags: .metadata.container.tags}' <<< "$keep"
+          echo 'Superseded image versions:'
+          jq --argjson keep "$keep_id" '[.[][] | select(.id != $keep) | {id, name, tags: .metadata.container.tags}]' <<< "$versions"
+          if [[ "$EXECUTE" != true ]]; then
+            echo 'Dry run completed; no image was deleted.'
+            exit 0
+          fi
+          while IFS= read -r version_id; do
+            [[ "$version_id" =~ ^[0-9]+$ ]]
+            [[ "$version_id" != "$keep_id" ]]
+            gh api --method DELETE "$package_path/versions/$version_id"
+            echo "Deleted superseded version $version_id"
+          done < <(jq -r --argjson keep "$keep_id" '.[][] | select(.id != $keep) | .id' <<< "$versions")
+          remaining=$(gh api --paginate --slurp "$package_path/versions?per_page=100")
+          jq -e --argjson keep "$keep_id" '[.[][]] | length == 1 and .[0].id == $keep' <<< "$remaining" >/dev/null
+          jq '[.[][] | {id, name, tags: .metadata.container.tags}]' <<< "$remaining"
+          echo 'Cleanup completed; only the latest image remains.'
