@@ -10,8 +10,8 @@ import threading
 import time
 from contextlib import contextmanager
 
-VERSION = "1.2.0"
-DEFAULT_IMAGE = "ghcr.io/taozi-succes/monster_panel:v1.2.0"
+VERSION = "1.2.1"
+DEFAULT_IMAGE = "ghcr.io/taozi-succes/marzban-panel:v1.2.1"
 NGINX_IMAGE = "nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a"
 MAX_BUNDLE = 256 * 1024 * 1024
 

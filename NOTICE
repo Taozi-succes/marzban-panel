@@ -1,4 +1,4 @@
-monster_panel
+marzban-panel
 
 This repository combines a Marzban panel customization, deployment and migration
 tools, node provisioning scripts, and synthetic tests. It does not contain

@@ -1,4 +1,4 @@
-name: Release monster_panel
+name: Release marzban-panel
 on:
   push:
     tags: ['v*.*.*']
@@ -7,7 +7,7 @@ on:
       version:
         description: Existing Git tag to build and publish without moving the tag
         required: true
-        default: v1.2.0
+        default: v1.2.1
 permissions:
   contents: read
   packages: write
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      IMAGE: ghcr.io/taozi-succes/monster_panel
+      IMAGE: ghcr.io/taozi-succes/marzban-panel
       RELEASE_TAG: ${{ inputs.version || github.ref_name }}
       NODE_IMAGE: gozargah/marzban-node@sha256:f93791ee35aa98b3851b74e5556c33a1d4607caf3e10781f52f37add14ed974d
       PANEL_IMAGE: gozargah/marzban@sha256:8e422c21997e5d2e3fa231eeff73c0a19193c20fc02fa4958e9368abb9623b8d
@@ -29,7 +29,7 @@ jobs:
         env:
           PRIVATE: ${{ github.event.repository.private }}
         run: |
-          test "$PRIVATE" = false && test "$GITHUB_REPOSITORY" = Taozi-succes/monster_panel
+          test "$PRIVATE" = false && test "$GITHUB_REPOSITORY" = Taozi-succes/marzban-panel
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "$(git describe --tags --exact-match)" = "$RELEASE_TAG"
           bash -n install.sh migrate.sh node.sh deploy/node/install.sh

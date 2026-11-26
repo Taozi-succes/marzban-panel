@@ -100,8 +100,8 @@ else:
                 self.assertNotIn(b"bootstrap-fixture-installer-started", result.stdout)
             calls = json.loads((stage/"calls.json").read_text())
             self.assertEqual(len(calls), 2)
-            self.assertIn(f"https://raw.githubusercontent.com/Taozi-succes/monster_panel/v{VERSION}/node.sh", calls[0])
-            self.assertIn(f"https://codeload.github.com/Taozi-succes/monster_panel/tar.gz/refs/tags/v{VERSION}", calls[1])
+            self.assertIn(f"https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v{VERSION}/node.sh", calls[0])
+            self.assertIn(f"https://codeload.github.com/Taozi-succes/marzban-panel/tar.gz/refs/tags/v{VERSION}", calls[1])
             self.assertNotIn("Authorization", json.dumps(calls))
             self.assertNotIn("unused-secret", json.dumps(calls))
             self.assertNotIn(b"unused-secret", result.stdout+result.stderr)
@@ -127,7 +127,7 @@ else:
                 return io.BytesIO(b"fixture-archive")
         with patch("release.build_opener", return_value=Opener()), patch("getpass.getpass", side_effect=AssertionError("Token prompt forbidden")):
             self.assertEqual(download("v1.0.1"), b"fixture-archive")
-        self.assertEqual(seen[0].full_url, "https://codeload.github.com/Taozi-succes/monster_panel/tar.gz/refs/tags/v1.0.1")
+        self.assertEqual(seen[0].full_url, "https://codeload.github.com/Taozi-succes/marzban-panel/tar.gz/refs/tags/v1.0.1")
         self.assertIsNone(seen[0].get_header("Authorization"))
 
     def test_upgrade_uses_verified_bundle_and_existing_root(self):

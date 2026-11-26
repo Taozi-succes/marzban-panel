@@ -1,10 +1,10 @@
 # 一键交互迁移
 
-在**新主控服务器**运行。迁移入口与全新部署入口分开；不需要 GitHub Token。默认停在隔离验收，不会自动停止旧主控。
+在**新主控服务器**运行。迁移入口与全新部署入口分开。默认停在隔离验收，不会自动停止旧主控。
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/migrate.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/migrate.sh)
 ```
 
 如果新服务器尚未部署目标面板，会先引导配置新面板域名、订阅域名、Cloudflare 区域、证书邮箱和临时管理员等，自动准备空面板和 HTTPS。已部署的目标必须为空面板或同一面板身份的隔离验收实例；有业务用户或节点的独立目标会被拒绝覆盖。恢复旧数据后使用原管理员登录。

@@ -12,4 +12,4 @@ COPY xray_config.json /code/xray_config.json
 RUN rm -rf /code/app/dashboard/build
 COPY --from=dashboard /dashboard /code/app/dashboard/build
 COPY --chmod=0755 deploy/operations/xray_compat.py /usr/local/bin/xray-panel
-LABEL org.opencontainers.image.source="https://github.com/Taozi-succes/monster_panel"
+LABEL org.opencontainers.image.source="https://github.com/Taozi-succes/marzban-panel"

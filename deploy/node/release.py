@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_ope
 
 from api import InstallError
 
-REPOSITORY = "Taozi-succes/monster_panel"
+REPOSITORY = "Taozi-succes/marzban-panel"
 FILES = {"installer.py", "api.py", "plan.py", "system.py", "probe.py", "release.py", "install.sh", "SHA256SUMS"}
 
 

@@ -1,25 +1,25 @@
 # Marzban Node Installer
 
-在新服务器交互式安装标准 Marzban-node，提供 **VLESS + TCP + REALITY** 和 **Cloudflare + WebSocket + TLS**，接入已有面板。安装和升级均匿名下载，不需要 GitHub Token。
+在新服务器交互式安装标准 Marzban-node，提供 **VLESS + TCP + REALITY** 和 **Cloudflare + WebSocket + TLS**，接入已有面板。
 
-节点安装器与主面板在 `Taozi-succes/monster_panel` 统一维护。运行脚本位于 `deploy/node/`，测试位于 `tests/node/`；仓库不包含生产部署资料、真实凭据或用户数据。
+节点安装器与主面板在 `Taozi-succes/marzban-panel` 统一维护。运行脚本位于 `deploy/node/`，测试位于 `tests/node/`；仓库不包含生产部署资料、真实凭据或用户数据。
 
-`v1.2.0` 将安装、匿名升级、文档和测试统一到本仓库。Cloudflare 网段通过官方公开 API `https://api.cloudflare.com/client/v4/ips` 获取；网段未取得或校验失败时不改防火墙。安装会显示阶段，长命令每 15 秒显示等待时间，不输出密码或命令中的秘密参数。管理 CLI 在安装依赖前保存，后续失败也可查看状态。
+`v1.2.1` 将安装、匿名升级、文档和测试统一到本仓库。Cloudflare 网段通过官方公开 API `https://api.cloudflare.com/client/v4/ips` 获取；网段未取得或校验失败时不改防火墙。安装会显示阶段，长命令每 15 秒显示等待时间，不输出密码或命令中的秘密参数。管理 CLI 在安装依赖前保存，后续失败也可查看状态。
 
 ## 一键安装
 
 在新服务器的 **root SSH 终端**执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/node.sh)
 ```
 
-非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.2.0`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
+非 root 先运行 `sudo -i`；缺少 curl 时先执行 `apt-get update && apt-get install -y curl ca-certificates`。入口固定下载 `v1.2.1`，仅提取允许的安装文件，核对 SHA256 后运行，退出后清理临时目录。来源信任依赖 HTTPS 和发布者，包内校验和用于检测损坏。
 
 只预览计划：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh) --plan
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/node.sh) --plan
 ```
 
 预览读取面板和校验 Cloudflare 区域，不写 DNS、证书、用户或节点配置。入口可能在执行命令的新服务器上安装缺少的 Python/OpenSSL 工具。
@@ -66,11 +66,11 @@ marzban-node status
 marzban-node check
 marzban-node reconfigure --plan
 marzban-node reconfigure
-marzban-node upgrade --release v1.2.0
+marzban-node upgrade --release v1.2.1
 marzban-node rollback
 ```
 
-中断后重跑一键命令继续保存的计划，CLI 已安装后也可用 `marzban-node install`。核心发生变化时先 `reconfigure --plan`，再重配。重复安装复用自身节点、密钥、标签和 DNS。旧版迁移：运行公开一键命令，保持原目录、标识、面板、模式和端口，可沿用已有状态并更新 CLI，无需 GitHub Token。
+中断后重跑一键命令继续保存的计划，CLI 已安装后也可用 `marzban-node install`。核心发生变化时先 `reconfigure --plan`，再重配。重复安装复用自身节点、密钥、标签和 DNS。旧版迁移：运行公开一键命令，保持原目录、标识、面板、模式和端口，可沿用已有状态并更新 CLI。
 
 重配可改显示名称、公网地址、管理来源、WS 域名和邮箱；旧域名 DNS/证书不自动删除。协议或端口迁移单独安排。升级匿名下载固定标签、校验后进入重配，镜像 digest 随验收版本固定。
 
@@ -85,12 +85,12 @@ marzban-node rollback
 主面板迁到新服务器／域名，并保留原数据库和节点身份后，在每台出口执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh) switch-panel
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/node.sh) switch-panel
 ```
 
 填写新面板 HTTPS 地址、新主控公网 IPv4 和管理员账号／密码；可在末尾加 `--plan` 只检查。脚本核对节点 TLS 身份、节点编号、地址、端口和原入站。确认旧主控已停止且云安全组已放行新来源后，只更新本地安装记录和两个管理端口的 UFW 来源规则，保留代理端口、密钥、WS 域名、证书和用户授权；不发布核心配置，不重启代理容器。会先保存原状态到 `releases/panel-switch-*.json`。
 
-连接检查失败时，已保存的新地址可继续使用 `switch-panel` 重试或 `check` 排查。不会自动恢复旧主控。完成后已安装的 CLI 可直接执行 `marzban-node switch-panel`。尚在旧版本的 CLI 先用上面的公开命令，无需 GitHub Token。
+连接检查失败时，已保存的新地址可继续使用 `switch-panel` 重试或 `check` 排查。不会自动恢复旧主控。完成后已安装的 CLI 可直接执行 `marzban-node switch-panel`。尚在旧版本的 CLI 先用上面的公开命令。
 
 独立空面板不含原节点身份和用户，不能用此命令直接接管；需要单独导入数据或建立独立节点实例。
 

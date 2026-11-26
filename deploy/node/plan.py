@@ -6,7 +6,7 @@ import re
 
 from api import InstallError, public_ipv4
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 NODE_IMAGE = "gozargah/marzban-node@sha256:f93791ee35aa98b3851b74e5556c33a1d4607caf3e10781f52f37add14ed974d"
 NGINX_IMAGE = "nginx@sha256:901e593c95dc85f5a729f5765516321366ef4ac401821431d408897e95287d0a"
 

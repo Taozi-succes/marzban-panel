@@ -10,7 +10,7 @@
 
 ```bash
 sudo -i
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/migrate.sh) backup --container 旧面板容器名 --source-address 旧主控公网IP --source-address 旧主控域名 --output /root/panel-preview.mzb
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/migrate.sh) backup --container 旧面板容器名 --source-address 旧主控公网IP --source-address 旧主控域名 --output /root/panel-preview.mzb
 ```
 
 按隐藏提示设置至少 12 位加密口令并妥善另存。工具通过只读挂载导出，SQLite 使用在线一致性快照；它不会修改源数据库、源配置或启动第二个主控。迁移加密依赖缺失时会安装 `python3-cryptography`。密码、数据库和私钥不打印到终端。
@@ -37,7 +37,7 @@ marzban-migrate verify
 在旧主控执行 `freeze`，它会在确认后执行 `docker stop` 并导出最终快照，不自动重启源容器：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/migrate.sh) freeze --container 旧面板容器名 --source-address 旧主控公网IP --source-address 旧主控域名 --output /root/panel-final.mzb
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/migrate.sh) freeze --container 旧面板容器名 --source-address 旧主控公网IP --source-address 旧主控域名 --output /root/panel-final.mzb
 ```
 
 把最终包复制到新主控后：
@@ -52,10 +52,10 @@ marzban-migrate activate
 
 ## 4. 出口节点改管理来源
 
-使用公开节点安装器 v1.2.0，在每个由该安装器管理的出口节点执行：
+使用公开节点安装器 v1.2.1，在每个由该安装器管理的出口节点执行：
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/monster_panel/v1.2.0/node.sh) switch-panel
+bash <(curl -fsSL https://raw.githubusercontent.com/Taozi-succes/marzban-panel/v1.2.1/node.sh) switch-panel
 ```
 
 输入新面板 HTTPS 地址、新主控公网 IP、新面板中的原管理员账号与密码。它核对管理 TLS 身份、节点编号、地址、端口和入站，再更新本地管理来源规则和安装记录；不会重建代理密钥、修改用户授权或发布全量核心配置。不接受直接切换到独立空面板。

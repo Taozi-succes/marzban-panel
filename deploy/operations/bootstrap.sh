@@ -12,7 +12,7 @@ main() (
   trap 'rm -rf -- "$local_stage"' EXIT
   curl --fail --silent --show-error --location --connect-timeout 10 --max-time 180 \
     --proto '=https' --proto-redir '=https' --max-filesize 67108864 \
-    'https://codeload.github.com/Taozi-succes/monster_panel/tar.gz/refs/tags/v1.2.0' \
+    'https://codeload.github.com/Taozi-succes/marzban-panel/tar.gz/refs/tags/v1.2.1' \
     --output "$local_stage/source.tgz"
   python3 - "$local_stage/source.tgz" "$local_stage/toolkit" <<'PY'
 import hashlib
